@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Formulaire Technicien</title>
-  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; font-size: 40px; }
     label { display: block; margin-top: 10px; font-weight: bold; font-size: 35px; }
@@ -27,19 +27,24 @@
     button:hover {
       background-color: #005A9E;
     }
-    input[type="file"] {
-      font-size: 50px;
-      padding: 25px;
-      height: 40px;
-      border-radius: 6px;
-      background-color: #f0f0f0;
-      cursor: pointer;
-    }
+   input[type="file"] {
+  width: 800px;           /* Largeur fixe plus raisonnable */
+  max-width: 100%;        /* Empêche de dépasser sur mobile */  
+  font-size: 50px;         /* Taille du texte dans le champ (pas le bouton) */
+  padding: 50px;           /* Espace intérieur autour du texte */
+  height: 50px;            /* Hauteur du champ (peut être écrasée par le padding) */
+  border-radius: 20px;      /* Coins arrondis du champ */
+  background-color: #f0f0f0; /* Couleur de fond gris pâle */
+  cursor: pointer;         /* Curseur en forme de main au survol */
+  // color: transparent; 
+}
+
+    
     input[type="text"],
     input[type="number"],
     textarea {
         font-size: 35px;         /* Texte bien visible sur mobile */
-        padding: 20px;           /* Plus d’espace intérieur */
+        padding: 10px 1px;           /* Plus d’espace intérieur */
         height: auto;            /* Hauteur flexible */
         border-radius: 6px;
         border: 1px solid #999;
@@ -71,13 +76,13 @@ input[type="file"]::file-selector-button:hover {
       <input type="text" id="technicianName" name="technicianName" required>
 
       <label for="storeNumber">Numéro du magasin</label>
-      <input type="text" id="storeNumber" name="storeNumber" required>
+      <input type="text" id="storeNumber" name="storeNumber" required inputmode="numeric" pattern="\d*" maxlength="5" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 5);">
 
       <label for="numU">Nombre de U disponibles</label>
-      <input type="number" id="numU" name="numU" required>
+      <input type="number" id="numU" name="numU" required inputmode="numeric" pattern="\d*" maxlength="2" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 2);">
 
       <label for="numOutlets">Nombre de prises électriques disponibles (PDU et UPS)</label>
-      <input type="number" id="numOutlets" name="numOutlets" required>
+      <input type="number" id="numOutlets" name="numOutlets" required inputmode="numeric" pattern="\d*" maxlength="2" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 2);">
     </div>
 
     <div class="section">
@@ -108,7 +113,7 @@ input[type="file"]::file-selector-button:hover {
     <div class="section">
       <label for="upsPhotos">Photos UPS (devant et derrière)</label>
       <input type="file" id="upsPhotos" name="upsPhotos" multiple accept="image/*" capture="environment">
-      <div class="photo-preview" id="upsPreview"></div>
+  <div class="photo-preview" id="upsPreview"></div>
     </div>
 
     <div class="section">
@@ -133,41 +138,54 @@ input[type="file"]::file-selector-button:hover {
   </form>
 
   <script>
-  function addRow() {
-    const table = document.getElementById("switchTable").getElementsByTagName('tbody')[0];
-    const newRow = table.rows[0].cloneNode(true);
-    newRow.querySelectorAll("input").forEach(input => input.value = "");
-    table.appendChild(newRow);
-  }
+const photoStore = {
+  upsPhotos: [],
+  acPhotos: [],
+  switchPhotos: [],
+  additionalPhotos: []
+};
 
-  function removeRow(button) {
-    const row = button.parentNode.parentNode;
-    const table = document.getElementById("switchTable").getElementsByTagName('tbody')[0];
-    if (table.rows.length > 1) {
-      table.removeChild(row);
-    }
-  }
+function addRow() {
+  const table = document.getElementById("switchTable").getElementsByTagName('tbody')[0];
+  const newRow = table.rows[0].cloneNode(true);
+  newRow.querySelectorAll("input").forEach(input => input.value = "");
+  table.appendChild(newRow);
+}
 
-  function previewImages(input, previewId) {
-    const preview = document.getElementById(previewId);
-    preview.innerHTML = '';
-    Array.from(input.files).forEach(file => {
-      const reader = new FileReader();
-      reader.onload = e => {
-        const img = document.createElement('img');
-        img.src = e.target.result;
-        preview.appendChild(img);
-      };
-      reader.readAsDataURL(file);
-    });
+function removeRow(button) {
+  const row = button.parentNode.parentNode;
+  const table = document.getElementById("switchTable").getElementsByTagName('tbody')[0];
+  if (table.rows.length > 1) {
+    table.removeChild(row);
   }
+}
 
- function downloadPhotos(inputId, keyword) {
+function previewImages(inputId, previewId) {
+  const preview = document.getElementById(previewId);
+  const files = photoStore[inputId];
+  preview.innerHTML = ""; // On vide l’aperçu avant de tout recharger
+
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.createElement('img');
+      img.src = e.target.result;
+      preview.appendChild(img);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function downloadPhotos(inputId, keyword) {
   const storeInput = document.getElementById("storeNumber");
   const storeNumber = storeInput && storeInput.value.trim() ? storeInput.value.trim() : "NoMagasin";
-  const files = document.getElementById(inputId).files;
+  const inputFiles = document.getElementById(inputId).files;
 
-  Array.from(files).forEach((file, index) => {
+  const existingKeys = photoStore[inputId].map(f => f.name + f.size);
+  const newFiles = Array.from(inputFiles).filter(f => !existingKeys.includes(f.name + f.size));
+  photoStore[inputId].push(...newFiles);
+
+  newFiles.forEach((file, index) => {
     const reader = new FileReader();
     reader.onload = function(e) {
       const now = new Date();
@@ -176,8 +194,9 @@ input[type="file"]::file-selector-button:hover {
       const month = monthNames[now.getMonth()];
       const hours = now.getHours().toString().padStart(2, '0');
       const minutes = now.getMinutes().toString().padStart(2, '0');
+      const seconds = now.getSeconds().toString().padStart(2, '0');
       const formattedDate = `${day}-${month}`;
-      const formattedTime = `${hours}h${minutes}`;
+      const formattedTime = `${hours}h${minutes}m${seconds}s`;
       const filename = `${keyword}_${storeNumber}_${formattedDate}_${formattedTime}_${index + 1}.jpg`;
 
       const link = document.createElement("a");
@@ -191,84 +210,132 @@ input[type="file"]::file-selector-button:hover {
   });
 }
 
+// Appels pour chaque champ photo
+document.getElementById("upsPhotos").addEventListener("change", () => {
+  downloadPhotos("upsPhotos", "UPS");
+  previewImages("upsPhotos", "upsPreview");
+});
 
+document.getElementById("acPhotos").addEventListener("change", () => {
+  downloadPhotos("acPhotos", "AC");
+  previewImages("acPhotos", "acPreview");
+});
 
+document.getElementById("switchPhotos").addEventListener("change", () => {
+  downloadPhotos("switchPhotos", "Switch");
+  previewImages("switchPhotos", "switchPreview");
+});
 
-  // Appels pour chaque champ photo
-  document.getElementById("upsPhotos").addEventListener("change", () => {
-    previewImages(upsPhotos, "upsPreview");
-    downloadPhotos("upsPhotos", "UPS");
+document.getElementById("additionalPhotos").addEventListener("change", () => {
+  downloadPhotos("additionalPhotos", "Cabinet");
+  previewImages("additionalPhotos", "additionalPreview");
+});
+
+// Soumission du formulaire
+document.getElementById('surveyForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  const technicianName = document.getElementById("technicianName").value;
+  const storeNumber = document.getElementById("storeNumber").value;
+  const numU = document.getElementById("numU").value;
+  const numOutlets = document.getElementById("numOutlets").value;
+
+  const switchRows = document.querySelectorAll("#switchTable tbody tr");
+  const switchData = [["Identifiant", "Marque", "Modèle", "Ports disponibles"]];
+
+  switchRows.forEach(row => {
+    const id = row.querySelector("input[name='id']").value.trim();
+    const brand = row.querySelector("input[name='brand']").value.trim();
+    const model = row.querySelector("input[name='model']").value.trim();
+    const ports = row.querySelector("input[name='ports']").value.trim();
+    if (id && brand && model && ports) {
+      switchData.push([id, brand, model, ports]);
+    }
   });
-  document.getElementById("acPhotos").addEventListener("change", () => {
-    previewImages(acPhotos, "acPreview");
-    downloadPhotos("acPhotos", "AC");
-  });
-  document.getElementById("switchPhotos").addEventListener("change", () => {
-    previewImages(switchPhotos, "switchPreview");
-    downloadPhotos("switchPhotos", "Switch");
-  });
-  document.getElementById("additionalPhotos").addEventListener("change", () => {
-    previewImages(additionalPhotos, "additionalPreview");
-    downloadPhotos("additionalPhotos", "Cabinet");
-  });
 
-  // Soumission du formulaire
-  document.getElementById('surveyForm').addEventListener('submit', function(e) {
-    e.preventDefault();
+  const questionData = [
+    ["Nom du technicien", technicianName],
+    ["Numéro du magasin", storeNumber],
+    ["Nombre de U disponibles", numU],
+    ["Nombre de prises électriques disponibles (PDU et UPS)", numOutlets]
+  ];
 
-    const technicianName = document.getElementById("technicianName").value;
-    const storeNumber = document.getElementById("storeNumber").value;
-    const numU = document.getElementById("numU").value;
-    const numOutlets = document.getElementById("numOutlets").value;
+ const wb = XLSX.utils.book_new();
+const wsData = [];
 
-    const switchRows = document.querySelectorAll("#switchTable tbody tr");
-    const switchData = [["Identifiant", "Marque", "Modèle", "Ports disponibles"]];
+// Ligne 1 : en-têtes combinés
+wsData.push([
+  "Nom du tech",
+  "Numéro du magasin",
+  "Nombre de U disponible",
+  "Info UPS",
+  "Prise AC disponible",
+  "Info Commutateur",
+  "Fabriquant",
+  "Modèle",
+  "Port disponible"
+]);
 
-    switchRows.forEach(row => {
-      const id = row.querySelector("input[name='id']").value.trim();
-      const brand = row.querySelector("input[name='brand']").value.trim();
-      const model = row.querySelector("input[name='model']").value.trim();
-      const ports = row.querySelector("input[name='ports']").value.trim();
-      if (id && brand && model && ports) {
-        switchData.push([id, brand, model, ports]);
-      }
-    });
+// Ligne 2 : réponses aux questions + premier commutateur (si présent)
+const firstSwitch = switchRows.length > 0 ? switchRows[0] : null;
+const firstSwitchData = firstSwitch
+  ? [
+      firstSwitch.querySelector("input[name='id']").value.trim(),
+      firstSwitch.querySelector("input[name='brand']").value.trim(),
+      firstSwitch.querySelector("input[name='model']").value.trim(),
+      firstSwitch.querySelector("input[name='ports']").value.trim()
+    ]
+  : ["", "", "", ""];
 
-    const questionData = [
-      ["Nom du technicien", technicianName],
-      ["Numéro du magasin", storeNumber],
-      ["Nombre de U disponibles", numU],
-      ["Nombre de prises électriques disponibles (PDU et UPS)", numOutlets]
-    ];
+wsData.push([
+  technicianName,
+  storeNumber,
+  numU,
+  "", // Info UPS à remplir plus tard si nécessaire
+  numOutlets,
+  ...firstSwitchData
+]);
 
-    const wb = XLSX.utils.book_new();
-    const wsQuestions = XLSX.utils.aoa_to_sheet(questionData);
-    const wsSwitches = XLSX.utils.aoa_to_sheet(switchData);
+// Ligne 3+ : autres commutateurs
+for (let i = 1; i < switchRows.length; i++) {
+  const row = switchRows[i];
+  const id = row.querySelector("input[name='id']").value.trim();
+  const brand = row.querySelector("input[name='brand']").value.trim();
+  const model = row.querySelector("input[name='model']").value.trim();
+  const ports = row.querySelector("input[name='ports']").value.trim();
+  if (id && brand && model && ports) {
+    wsData.push(["", "", "", "", "", id, brand, model, ports]);
+  }
+}
 
-    XLSX.utils.book_append_sheet(wb, wsQuestions, "Réponses");
-    XLSX.utils.book_append_sheet(wb, wsSwitches, "Commutateurs");
+// Création de la feuille
+const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const blob = new Blob([wbout], { type: "application/octet-stream" });
+ws['!cols'] = Array(wsData[0].length).fill({ width: 20 });
+XLSX.utils.book_append_sheet(wb, ws, "Réponses");
 
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `Rapport_${storeNumber}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+// Export
+const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+const blob = new Blob([wbout], { type: "application/octet-stream" });
 
-    const subject = encodeURIComponent("Rapport technicien - " + technicianName);
-    const body = encodeURIComponent(
-  "Bonjour,\n\nVeuillez trouver ci-joint le rapport du technicien.\n\nNom du technicien: " + technicianName +
-  "\nNuméro du magasin: " + storeNumber +
-  "\nNombre de U disponibles: " + numU +
-  "\nNombre de prises électriques disponibles: " + numOutlets +
-  "\n\nLe fichier Excel et les photos ont été téléchargés sur votre appareil avec comme titre, le numéro du magasin, la date et l'heure." +
-  "\n\nVeuillez les ajouter en pièce jointe."
-);
+const link = document.createElement("a");
+link.href = URL.createObjectURL(blob);
+link.download = `Rapport_${storeNumber}.xlsx`;
+document.body.appendChild(link);
+link.click();
+document.body.removeChild(link);
 
+  const subject = encodeURIComponent("Rapport technicien - " + technicianName);
+  const body = encodeURIComponent(
+    "Bonjour,\n\nVeuillez trouver ci-joint le rapport du technicien.\n\nNom du technicien: " + technicianName +
+    "\nNuméro du magasin: " + storeNumber +
+    "\nNombre de U disponibles: " + numU +
+    "\nNombre de prises électriques disponibles: " + numOutlets +
+    "\n\nLe fichier Excel et les photos ont été téléchargés sur votre appareil avec comme titre, le numéro du magasin, la date et l'heure." +
+    "\n\nVeuillez les ajouter en pièce jointe."
+  );
 
-    window.location.href = `mailto:ddeslauriers@compugen.com?subject=${subject}&body=${body}`;
-  });
+  window.location.href = `mailto:ddeslauriers@compugen.com?subject=${subject}&body=${body}`;
+});
 </script>
+
