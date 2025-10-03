@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Formulaire Technicien</title>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; font-size: 40px; }
+    label { display: block; margin-top: 10px; font-weight: bold; font-size: 35px; }
+    input, textarea { width: 100%; margin-top: 5px; }
+    .section { margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; }
+    .photo-preview { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .photo-preview img { max-width: 100px; max-height: 100px; border: 1px solid #ccc; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    button {
+      margin-top: 10px;
+      padding: 14px 35px;
+      font-size: 35px;
+      font-weight: bold;
+      border-radius: 6px;
+      background-color: #0078D4;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #005A9E;
+    }
+    input[type="file"] {
+      font-size: 50px;
+      padding: 25px;
+      height: 40px;
+      border-radius: 6px;
+      background-color: #f0f0f0;
+      cursor: pointer;
+    }
+    input[type="text"],
+    input[type="number"],
+    textarea {
+        font-size: 35px;         /* Texte bien visible sur mobile */
+        padding: 20px;           /* Plus d’espace intérieur */
+        height: auto;            /* Hauteur flexible */
+        border-radius: 6px;
+        border: 1px solid #999;
+    }
+
+
+input[type="file"]::file-selector-button {
+  background-color: #0078D4;     /* Bleu Microsoft */
+  color: white;                  /* Texte blanc */
+  font-size: 35px;               /* Texte gros */
+  font-weight: bold;             /* Texte gras */
+  padding: 14px 35px;            /* Hauteur et largeur */
+  border: none;                  /* Pas de bord */
+  border-radius: 6px;            /* Coins arrondis */
+  cursor: pointer;
+}
+
+input[type="file"]::file-selector-button:hover {
+  background-color: #005A9E;     /* Bleu foncé au survol */
+}
+
+  </style>
+</head>
+<body>
+  <h1>Formulaire Technicien</h1>
+  <form id="surveyForm">
+    <div class="section">
+      <label for="technicianName">Nom du technicien</label>
+      <input type="text" id="technicianName" name="technicianName" required>
+
+      <label for="storeNumber">Numéro du magasin</label>
+      <input type="text" id="storeNumber" name="storeNumber" required>
+
+      <label for="numU">Nombre de U disponibles</label>
+      <input type="number" id="numU" name="numU" required>
+
+      <label for="numOutlets">Nombre de prises électriques disponibles (PDU et UPS)</label>
+      <input type="number" id="numOutlets" name="numOutlets" required>
+    </div>
+
+    <div class="section">
+      <label>Inventaire des commutateurs</label>
+      <table id="switchTable">
+        <thead>
+          <tr>
+            <th>Identifiant</th>
+            <th>Marque</th>
+            <th>Modèle</th>
+            <th>Ports disponibles</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input type="text" name="id"></td>
+            <td><input type="text" name="brand"></td>
+            <td><input type="text" name="model"></td>
+            <td><input type="number" name="ports"></td>
+            <td><button type="button" onclick="removeRow(this)">Supprimer</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <button type="button" onclick="addRow()">Ajouter un autre commutateur</button>
+    </div>
+
+    <div class="section">
+      <label for="upsPhotos">Photos UPS (devant et derrière)</label>
+      <input type="file" id="upsPhotos" name="upsPhotos" multiple accept="image/*" capture="environment">
+      <div class="photo-preview" id="upsPreview"></div>
+    </div>
+
+    <div class="section">
+      <label for="acPhotos">Photos affichage UPS</label>
+      <input type="file" id="acPhotos" name="acPhotos" multiple accept="image/*" capture="environment">
+      <div class="photo-preview" id="acPreview"></div>
+    </div>
+
+    <div class="section">
+      <label for="switchPhotos">Photos format <u>horizontal</u> des commutateurs (groupé)</label>
+      <input type="file" id="switchPhotos" name="switchPhotos" multiple accept="image/*" capture="environment">
+      <div class="photo-preview" id="switchPreview"></div>
+    </div>
+
+    <div class="section">
+      <label for="additionalPhotos">Photos format <u>vertical</u> du cabinet complet (H Frame)</label>
+      <input type="file" id="additionalPhotos" name="additionalPhotos" multiple accept="image/*" capture="environment">
+      <div class="photo-preview" id="additionalPreview"></div>
+    </div>
+
+    <button type="submit">Envoyer</button>
+  </form>
+
+  <script>
+  function addRow() {
+    const table = document.getElementById("switchTable").getElementsByTagName('tbody')[0];
+    const newRow = table.rows[0].cloneNode(true);
+    newRow.querySelectorAll("input").forEach(input => input.value = "");
+    table.appendChild(newRow);
+  }
+
+  function removeRow(button) {
+    const row = button.parentNode.parentNode;
+    const table = document.getElementById("switchTable").getElementsByTagName('tbody')[0];
+    if (table.rows.length > 1) {
+      table.removeChild(row);
+    }
+  }
+
+  function previewImages(input, previewId) {
+    const preview = document.getElementById(previewId);
+    preview.innerHTML = '';
+    Array.from(input.files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        preview.appendChild(img);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+ function downloadPhotos(inputId, keyword) {
+  const storeInput = document.getElementById("storeNumber");
+  const storeNumber = storeInput && storeInput.value.trim() ? storeInput.value.trim() : "NoMagasin";
+  const files = document.getElementById(inputId).files;
+
+  Array.from(files).forEach((file, index) => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const now = new Date();
+      const day = now.getDate();
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const month = monthNames[now.getMonth()];
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const formattedDate = `${day}-${month}`;
+      const formattedTime = `${hours}h${minutes}`;
+      const filename = `${keyword}_${storeNumber}_${formattedDate}_${formattedTime}_${index + 1}.jpg`;
+
+      const link = document.createElement("a");
+      link.href = e.target.result;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+
+
+
+  // Appels pour chaque champ photo
+  document.getElementById("upsPhotos").addEventListener("change", () => {
+    previewImages(upsPhotos, "upsPreview");
+    downloadPhotos("upsPhotos", "UPS");
+  });
+  document.getElementById("acPhotos").addEventListener("change", () => {
+    previewImages(acPhotos, "acPreview");
+    downloadPhotos("acPhotos", "AC");
+  });
+  document.getElementById("switchPhotos").addEventListener("change", () => {
+    previewImages(switchPhotos, "switchPreview");
+    downloadPhotos("switchPhotos", "Switch");
+  });
+  document.getElementById("additionalPhotos").addEventListener("change", () => {
+    previewImages(additionalPhotos, "additionalPreview");
+    downloadPhotos("additionalPhotos", "Cabinet");
+  });
+
+  // Soumission du formulaire
+  document.getElementById('surveyForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const technicianName = document.getElementById("technicianName").value;
+    const storeNumber = document.getElementById("storeNumber").value;
+    const numU = document.getElementById("numU").value;
+    const numOutlets = document.getElementById("numOutlets").value;
+
+    const switchRows = document.querySelectorAll("#switchTable tbody tr");
+    const switchData = [["Identifiant", "Marque", "Modèle", "Ports disponibles"]];
+
+    switchRows.forEach(row => {
+      const id = row.querySelector("input[name='id']").value.trim();
+      const brand = row.querySelector("input[name='brand']").value.trim();
+      const model = row.querySelector("input[name='model']").value.trim();
+      const ports = row.querySelector("input[name='ports']").value.trim();
+      if (id && brand && model && ports) {
+        switchData.push([id, brand, model, ports]);
+      }
+    });
+
+    const questionData = [
+      ["Nom du technicien", technicianName],
+      ["Numéro du magasin", storeNumber],
+      ["Nombre de U disponibles", numU],
+      ["Nombre de prises électriques disponibles (PDU et UPS)", numOutlets]
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const wsQuestions = XLSX.utils.aoa_to_sheet(questionData);
+    const wsSwitches = XLSX.utils.aoa_to_sheet(switchData);
+
+    XLSX.utils.book_append_sheet(wb, wsQuestions, "Réponses");
+    XLSX.utils.book_append_sheet(wb, wsSwitches, "Commutateurs");
+
+    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([wbout], { type: "application/octet-stream" });
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `Rapport_${storeNumber}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    const subject = encodeURIComponent("Rapport technicien - " + technicianName);
+    const body = encodeURIComponent(
+  "Bonjour,\n\nVeuillez trouver ci-joint le rapport du technicien.\n\nNom du technicien: " + technicianName +
+  "\nNuméro du magasin: " + storeNumber +
+  "\nNombre de U disponibles: " + numU +
+  "\nNombre de prises électriques disponibles: " + numOutlets +
+  "\n\nLe fichier Excel et les photos ont été téléchargés sur votre appareil avec comme titre, le numéro du magasin, la date et l'heure." +
+  "\n\nVeuillez les ajouter en pièce jointe."
+);
+
+
+    window.location.href = `mailto:ddeslauriers@compugen.com?subject=${subject}&body=${body}`;
+  });
+</script>
